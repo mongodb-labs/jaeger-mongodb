@@ -1,0 +1,4 @@
+# Default config -- Run MongoDB locally
+mongo_url: "mongodb://192.168.1.235:27017"
+mongo_database: traces2
+mongo_collection: traces

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -18,14 +19,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 
-	"jaeger-mongodb/internal/jager-mongodb"
+	jager_mongodb "jaeger-mongodb/internal/jager-mongodb"
 )
 
 var configPath string
+var defaultConfigPath = "run/defaultConfig.yaml"
 
 func main() {
 	flag.StringVar(&configPath, "config", "", "A path to the plugin's configuration file")
 	flag.Parse()
+
+	fmt.Println("Current config path:")
+	fmt.Println(configPath)
 
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       "jaeger-mongodb",
@@ -36,19 +41,16 @@ func main() {
 	v := viper.New()
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
-
-	if configPath != "" {
+	if configPath == "" { // If configPath is absent from arguments, set default config
+		v.SetConfigFile(defaultConfigPath)
+	} else {
 		v.SetConfigFile(configPath)
-
-		err := v.ReadInConfig()
-		if err != nil {
-			logger.Error("failed to parse configuration file", "err", err)
-			os.Exit(1)
-		}
 	}
+
 	err := v.ReadInConfig()
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to parse configuration file", "err", err)
+		os.Exit(1)
 	}
 
 	opts := jager_mongodb.Options{}
@@ -77,6 +79,7 @@ func main() {
 		writer: jager_mongodb.NewSpanWriter(m.Database(
 			opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection), logger),
 	}
+
 	grpc.Serve(&shared.PluginServices{
 		Store: plugin,
 		//TODO(dmichel): ArchiveStore: plugin,
