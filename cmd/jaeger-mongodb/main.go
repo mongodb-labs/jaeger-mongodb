@@ -23,7 +23,7 @@ import (
 )
 
 var configPath string
-var defaultConfigPath = "run/defaultConfig.yaml"
+var defaultConfigPath = "run/default-config.yaml"
 
 func main() {
 	flag.StringVar(&configPath, "config", "", "A path to the plugin's configuration file")
