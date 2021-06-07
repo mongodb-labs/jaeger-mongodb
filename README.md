@@ -1,12 +1,5 @@
 # jaeger-mongodb 
 
-[jaeger]: https://github.com/jaegertracing/jaeger/
-[jaeger-influxdb]: https://github.com/influxdata/jaeger-influxdbjaeger-mongodb
-[Docker]: https://www.docker.com/products/docker-desktop
-[Go]: https://golang.org/doc/install
-[MongoDB-Compass]: https://www.mongodb.com/products/compass
-[HotROD]: https://github.com/jaegertracing/jaeger/tree/master/examples/hotrod
-
 ## Prerequisites:
 1. Download latest version of [Docker]
 2. Download latest version of [Go]
@@ -40,7 +33,7 @@
 3. Cd to the root directory (jaeger-mongodb) and run the following commands:
    - Build main.go with the following command. By default, we will be running and storing traces in MongoDB locally.
         ```bash
-        go run cmd/jaeger-mongodb/main.go
+        GOOS=linux go build ./cmd/jaeger-mongodb
         ```
    - Start Jager with the following command
         ```bash
@@ -74,3 +67,10 @@
 ## Credit
 
 This project is based on work from [jaeger] and [jaeger-influxdb]. Thank you authors!
+
+[jaeger]: https://github.com/jaegertracing/jaeger/
+[jaeger-influxdb]: https://github.com/influxdata/jaeger-influxdbjaeger-mongodb
+[Docker]: https://www.docker.com/products/docker-desktop
+[Go]: https://golang.org/doc/install
+[MongoDB-Compass]: https://www.mongodb.com/products/compass
+[HotROD]: https://github.com/jaegertracing/jaeger/tree/master/examples/hotrod
