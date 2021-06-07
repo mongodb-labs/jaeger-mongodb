@@ -49,9 +49,11 @@
         -v $(pwd)/run:/mdb \
         -e SPAN_STORAGE_TYPE=grpc-plugin \
         -e GRPC_STORAGE_PLUGIN_BINARY=/mdb/jaeger-mongodb \
-        -e GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE=/mdb/config.yaml \
+        -e GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE=/mdb/default-config.yaml \
         jaegertracing/all-in-one:1.22
         ```
+    - Note: If you have a custom configuration yaml file that you would like to use, change default-config.yaml to the name of your custom config file.
+    - 
 4. In a separate terminal tab/window, start mongodb
     ```bash
     mongodb
