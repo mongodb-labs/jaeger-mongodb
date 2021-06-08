@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -28,9 +27,6 @@ var defaultConfigPath = "run/default-config.yaml"
 func main() {
 	flag.StringVar(&configPath, "config", "", "A path to the plugin's configuration file")
 	flag.Parse()
-
-	fmt.Println("Current config path:")
-	fmt.Println(configPath)
 
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:       "jaeger-mongodb",

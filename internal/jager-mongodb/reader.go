@@ -225,6 +225,19 @@ func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQue
 		"$lt": query.StartTimeMax,
 	}
 
+	// Filtering by concatenation of tags.
+	tags_array := bson.A{}
+	for k, v := range query.Tags {
+		q := bson.M{
+			"tags.key":   k,
+			"tags.value": v,
+		}
+		tags_array = append(tags_array, q)
+	}
+	if len(tags_array) != 0 {
+		filter["$and"] = tags_array
+	}
+
 	if query.ServiceName != "" {
 		filter["process.serviceName"] = query.ServiceName
 	}
@@ -253,6 +266,7 @@ func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQue
 	}
 
 	opts := options.DistinctOptions{}
+
 	traceIds, err := s.collection.Distinct(ctx, "traceID", filter, &opts)
 	if err != nil {
 		s.log.Error("error getting traceIDs", "err", err)
