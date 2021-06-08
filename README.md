@@ -47,10 +47,9 @@
         -p 14250:14250 \
         -p 9411:9411 \
         -v $(pwd):/app \
-        -v $(pwd)/configs:/configs \
         -e SPAN_STORAGE_TYPE=grpc-plugin \
         -e GRPC_STORAGE_PLUGIN_BINARY=/app/jaeger-mongodb \
-        -e GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE=/configs/default-config.yaml \
+        -e GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE=/app/configs/default-config.yaml \
         jaegertracing/all-in-one:1.22
         ```
     - Note: If you have a custom configuration yaml file that you would like to use, change default-config.yaml to the name of your custom config file.
