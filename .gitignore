@@ -1,1 +1,6 @@
 .idea/
+.DS_Store
+*.sh
+jaeger-mongodb
+/test
+.vscode

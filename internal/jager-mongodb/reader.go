@@ -253,6 +253,7 @@ func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQue
 	}
 
 	opts := options.DistinctOptions{}
+
 	traceIds, err := s.collection.Distinct(ctx, "traceID", filter, &opts)
 	if err != nil {
 		s.log.Error("error getting traceIDs", "err", err)
