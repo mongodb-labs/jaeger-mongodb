@@ -67,7 +67,7 @@ func (s *SpanReader) GetOperations(ctx context.Context, query spanstore.Operatio
 
 	filter := bson.D{}
 	if query.ServiceName != "" {
-		filter = bson.D{{"process.serviceName", query.ServiceName}}
+		filter = bson.D{{Key: "process.serviceName", Value: query.ServiceName}}
 	}
 
 	ops, err := s.collection.Distinct(ctx, "operationName", filter, opts)
