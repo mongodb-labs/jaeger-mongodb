@@ -1,4 +1,5 @@
 # Default config -- Run MongoDB locally
 mongo_url: "mongodb://10.1.15.231:27017"
+# mongo_url: "mongodb://192.168.1.197:27017"
 mongo_database: jaeger-tracing
 mongo_collection: traces
