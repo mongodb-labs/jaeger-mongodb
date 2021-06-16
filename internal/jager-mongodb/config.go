@@ -7,15 +7,17 @@ import (
 )
 
 const (
-	mongoUrl        = "mongo_url"
-	mongoDatabase   = "mongo_database"
-	mongoCollection = "mongo_collection"
+	mongoUrl          = "mongo_url"
+	mongoDatabase     = "mongo_database"
+	mongoCollection   = "mongo_collection"
+	archiveCollection = "archive_collection"
 )
 
 type Configuration struct {
-	MongoUrl        string `yaml:"mongo_url"`
-	MongoDatabase   string `yaml:"mongo_database"`
-	MongoCollection string `yaml:"mongo_collection"`
+	MongoUrl          string `yaml:"mongo_url"`
+	MongoDatabase     string `yaml:"mongo_database"`
+	MongoCollection   string `yaml:"mongo_collection"`
+	ArchiveCollection string `yaml:"archive_collection"`
 }
 
 // Options stores the configuration entries for this storage
@@ -34,8 +36,10 @@ func (opt *Options) InitFromViper(v *viper.Viper) {
 	v.SetDefault(mongoUrl, "mongodb://localhost:27017")
 	v.SetDefault(mongoDatabase, "traces")
 	v.SetDefault(mongoCollection, "spans")
+	v.SetDefault(archiveCollection, "archiveTraces")
 
 	opt.Configuration.MongoUrl = v.GetString(mongoUrl)
 	opt.Configuration.MongoDatabase = v.GetString(mongoDatabase)
 	opt.Configuration.MongoCollection = v.GetString(mongoCollection)
+	opt.Configuration.ArchiveCollection = v.GetString(archiveCollection)
 }

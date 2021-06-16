@@ -34,6 +34,12 @@ func main() {
 		JSONFormat: true,
 	})
 
+	archiveLogger := hclog.New(&hclog.LoggerOptions{
+		Name:       "jaeger-mongodb",
+		Level:      hclog.Warn, // Jaeger only captures >= Warn, so don't bother logging below Warn
+		JSONFormat: true,
+	})
+
 	v := viper.New()
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
@@ -68,16 +74,22 @@ func main() {
 			panic(err)
 		}
 	}()
+	collection := m.Database(opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection)
+	archiveCollection := m.Database(opts.Configuration.MongoDatabase).Collection(opts.Configuration.ArchiveCollection)
 
 	plugin := &mongoStorePlugin{
-		reader: jager_mongodb.NewSpanReader(m.Database(
-			opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection), logger),
-		writer: jager_mongodb.NewSpanWriter(m.Database(
-			opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection), logger),
+		reader: jager_mongodb.NewSpanReader(collection, logger),
+		writer: jager_mongodb.NewSpanWriter(collection, logger),
+	}
+
+	archivePlugin := &mongoStorePlugin{
+		reader: jager_mongodb.NewSpanReader(archiveCollection, archiveLogger),
+		writer: jager_mongodb.NewSpanWriter(archiveCollection, archiveLogger),
 	}
 
 	grpc.Serve(&shared.PluginServices{
-		Store: plugin,
+		Store:        plugin,
+		ArchiveStore: archivePlugin,
 		//TODO(dmichel): ArchiveStore: plugin,
 	})
 
@@ -97,5 +109,13 @@ func (s *mongoStorePlugin) SpanReader() spanstore.Reader {
 }
 
 func (s *mongoStorePlugin) SpanWriter() spanstore.Writer {
+	return s.writer
+}
+
+func (s *mongoStorePlugin) ArchiveSpanReader() spanstore.Reader {
+	return s.reader
+}
+
+func (s *mongoStorePlugin) ArchiveSpanWriter() spanstore.Writer {
 	return s.writer
 }
