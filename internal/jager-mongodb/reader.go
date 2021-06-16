@@ -67,7 +67,7 @@ func (s *SpanReader) GetOperations(ctx context.Context, query spanstore.Operatio
 
 	filter := bson.D{}
 	if query.ServiceName != "" {
-		filter = bson.D{{"process.serviceName", query.ServiceName}}
+		filter = bson.D{{Key: "process.serviceName", Value: query.ServiceName}}
 	}
 
 	ops, err := s.collection.Distinct(ctx, "operationName", filter, opts)
@@ -223,6 +223,19 @@ func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQue
 	filter["startTime"] = bson.M{
 		"$gt": query.StartTimeMin,
 		"$lt": query.StartTimeMax,
+	}
+
+	// Filtering by concatenation of tags.
+	tags_array := bson.A{}
+	for k, v := range query.Tags {
+		q := bson.M{
+			"tags.key":   k,
+			"tags.value": v,
+		}
+		tags_array = append(tags_array, q)
+	}
+	if len(tags_array) != 0 {
+		filter["$and"] = tags_array
 	}
 
 	if query.ServiceName != "" {
