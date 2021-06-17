@@ -3,7 +3,3 @@ mongo_url: "mongodb://10.1.15.231:27017"
 mongo_database: jaeger-tracing
 mongo_collection: traces
 expire_after_seconds: 1209600
-<<<<<<< HEAD
-
-=======
->>>>>>> cca22ce6a20310c4373c5ae4557b0c7bf978ff85
