@@ -19,7 +19,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 
-	jager_mongodb "jaeger-mongodb/internal/jager-mongodb"
+	jaeger_mongodb "jaeger-mongodb/internal/jaeger-mongodb"
 )
 
 var configPath string
@@ -56,7 +56,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	opts := jager_mongodb.Options{}
+	opts := jaeger_mongodb.Options{}
 	opts.InitFromViper(v)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -89,8 +89,8 @@ func main() {
 	}()
 
 	plugin := &mongoStorePlugin{
-		reader: jager_mongodb.NewSpanReader(collection, logger),
-		writer: jager_mongodb.NewSpanWriter(collection, logger),
+		reader: jaeger_mongodb.NewSpanReader(collection, logger),
+		writer: jaeger_mongodb.NewSpanWriter(collection, logger),
 	}
 
 	archivePlugin := &mongoStorePlugin{
@@ -106,8 +106,8 @@ func main() {
 }
 
 type mongoStorePlugin struct {
-	reader *jager_mongodb.SpanReader
-	writer *jager_mongodb.SpanWriter
+	reader *jaeger_mongodb.SpanReader
+	writer *jaeger_mongodb.SpanWriter
 }
 
 type archiveStorePlugin struct {

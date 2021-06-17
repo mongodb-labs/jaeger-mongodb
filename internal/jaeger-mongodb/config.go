@@ -1,4 +1,4 @@
-package jager_mongodb
+package jaeger_mongodb
 
 import (
 	"flag"
