@@ -32,6 +32,33 @@ func NewSpanReader(collection *mongo.Collection, logger hclog.Logger) *SpanReade
 	}
 }
 
+// SpanReader queries for traces in MongoDB.
+type ArchiveReader struct {
+	collection *mongo.Collection
+	log        hclog.Logger
+}
+
+func NewArchiveReader(collection *mongo.Collection, logger hclog.Logger) *SpanReader {
+	return &SpanReader{
+		collection: collection,
+		log:        logger,
+	}
+}
+
+// Archive Reader only get traces by ID.
+func (r *ArchiveReader) GetTrace(ctx context.Context, traceID model.TraceID) (*model.Trace, error) {
+	tracesMap, err := r.findTraces(ctx, []string{traceID.String()})
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range tracesMap {
+		return tracesMap[i], nil
+	}
+
+	return nil, ErrTraceNotFound
+}
+
 // GetTrace retrieve the given traceID.
 func (s *SpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (*model.Trace, error) {
 	tracesMap, err := s.findTraces(ctx, []string{traceID.String()})
@@ -394,4 +421,160 @@ func (s *SpanReader) convertKeyValue(tag *KeyValue) (model.KeyValue, error) {
 		return model.Float64(tag.Key, value), nil
 	}
 	return model.KeyValue{}, fmt.Errorf("not a valid ValueType string %s", string(tag.Type))
+}
+
+// =======ARCHIVE READER=====================
+func (s *ArchiveReader) convertRefs(refs []Reference) ([]model.SpanRef, error) {
+	retMe := make([]model.SpanRef, len(refs))
+	for i, r := range refs {
+		// There are some inconsistencies with ReferenceTypes, hence the hacky fix.
+		var refType model.SpanRefType
+		switch r.RefType {
+		case ChildOf:
+			refType = model.ChildOf
+		case FollowsFrom:
+			refType = model.FollowsFrom
+		default:
+			return nil, fmt.Errorf("not a valid SpanRefType string %s", string(r.RefType))
+		}
+
+		traceID, err := model.TraceIDFromString(string(r.TraceID))
+		if err != nil {
+			return nil, err
+		}
+
+		spanID, err := model.SpanIDFromString(string(r.SpanID))
+		if err != nil {
+			return nil, err
+		}
+
+		retMe[i] = model.SpanRef{
+			RefType: refType,
+			TraceID: traceID,
+			SpanID:  spanID,
+		}
+	}
+	return retMe, nil
+}
+
+func (s *ArchiveReader) convertKeyValue(tag *KeyValue) (model.KeyValue, error) {
+	if tag.Value == nil {
+		return model.KeyValue{}, fmt.Errorf("invalid nil Value in %v", tag)
+	}
+	tagValue, ok := tag.Value.(string)
+	if !ok {
+		return model.KeyValue{}, fmt.Errorf("non-string Value of type %t in %v", tag.Value, tag)
+	}
+	switch tag.Type {
+	case StringType:
+		return model.String(tag.Key, tagValue), nil
+	case BoolType:
+		value, err := strconv.ParseBool(tagValue)
+		if err != nil {
+			return model.KeyValue{}, err
+		}
+		return model.Bool(tag.Key, value), nil
+	case Int64Type:
+		value, err := strconv.ParseInt(tagValue, 10, 64)
+		if err != nil {
+			return model.KeyValue{}, err
+		}
+		return model.Int64(tag.Key, value), nil
+	case Float64Type:
+		value, err := strconv.ParseFloat(tagValue, 64)
+		if err != nil {
+			return model.KeyValue{}, err
+		}
+		return model.Float64(tag.Key, value), nil
+	}
+	return model.KeyValue{}, fmt.Errorf("not a valid ValueType string %s", string(tag.Type))
+}
+
+func (s *ArchiveReader) convertKeyValues(tags []KeyValue) ([]model.KeyValue, error) {
+	retMe := make([]model.KeyValue, len(tags))
+	for i := range tags {
+		kv, err := s.convertKeyValue(&tags[i])
+		if err != nil {
+			return nil, err
+		}
+		retMe[i] = kv
+	}
+	return retMe, nil
+}
+
+func (s *ArchiveReader) findTraces(ctx context.Context, ids []string) (map[string]*model.Trace, error) {
+	filter := bson.M{
+		"traceID": bson.M{"$in": ids},
+	}
+
+	findOpts := options.FindOptions{}
+	cur, err := s.collection.Find(ctx, filter, &findOpts)
+
+	if err != nil {
+		s.log.Error("error finding spans", "err", err)
+		return nil, fmt.Errorf("error finding spans %w", err)
+	}
+
+	defer cur.Close(ctx)
+
+	tracesMap := make(map[string]*model.Trace, len(ids))
+	for cur.Next(ctx) {
+		var ms Span
+		err := cur.Decode(&ms)
+
+		if err != nil {
+			s.log.Error("error decoding span", "err", err)
+			return nil, fmt.Errorf("error decoding span: %w", err)
+		}
+
+		if _, ok := tracesMap[ms.TraceID]; !ok {
+			tracesMap[ms.TraceID] = &model.Trace{}
+		}
+
+		tId, err := model.TraceIDFromString(ms.TraceID)
+		if err != nil {
+			return nil, err
+		}
+
+		sId, err := model.SpanIDFromString(ms.SpanID)
+		if err != nil {
+			return nil, err
+		}
+
+		refs, err := s.convertRefs(ms.References)
+		if err != nil {
+			return nil, err
+		}
+		tags, err := s.convertKeyValues(ms.Tags)
+
+		pTags, err := s.convertKeyValues(ms.Process.Tags)
+		if err != nil {
+			return nil, err
+		}
+
+		s := model.Span{
+			TraceID:       tId,
+			SpanID:        sId,
+			OperationName: ms.OperationName,
+			References:    refs,
+			StartTime:     ms.StartTime,
+			Duration:      model.MicrosecondsAsDuration(uint64(ms.Duration)),
+			Tags:          tags,
+			Logs:          []model.Log{}, // TODO(dmichel): implement
+			Process: &model.Process{
+				ServiceName: ms.Process.ServiceName,
+				Tags:        pTags,
+			},
+			Warnings: []string{}, // TODO(dmichel): implement
+		}
+
+		tracesMap[ms.TraceID].Spans = append(tracesMap[ms.TraceID].Spans, &s)
+	}
+
+	if err := cur.Err(); err != nil {
+		s.log.Error("error decoding span", "err", err)
+		return nil, fmt.Errorf("error with finding span %w", err)
+	}
+
+	return tracesMap, nil
 }

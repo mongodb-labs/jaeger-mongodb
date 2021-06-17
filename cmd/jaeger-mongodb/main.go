@@ -83,20 +83,24 @@ func main() {
 	}
 
 	archivePlugin := &mongoStorePlugin{
-		reader: jager_mongodb.NewSpanReader(archiveCollection, archiveLogger),
+		reader: jager_mongodb.NewArchiveReader(archiveCollection, archiveLogger),
 		writer: jager_mongodb.NewSpanWriter(archiveCollection, archiveLogger),
 	}
 
 	grpc.Serve(&shared.PluginServices{
 		Store:        plugin,
 		ArchiveStore: archivePlugin,
-		//TODO(dmichel): ArchiveStore: plugin,
 	})
 
 }
 
 type mongoStorePlugin struct {
 	reader *jager_mongodb.SpanReader
+	writer *jager_mongodb.SpanWriter
+}
+
+type archiveStorePlugin struct {
+	reader *jager_mongodb.ArchiveReader
 	writer *jager_mongodb.SpanWriter
 }
 
