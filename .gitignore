@@ -4,3 +4,4 @@
 jaeger-mongodb
 /test
 .vscode
+_test.go
