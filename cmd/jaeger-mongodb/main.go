@@ -14,6 +14,7 @@ import (
 	"github.com/jaegertracing/jaeger/storage/dependencystore"
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 	"github.com/spf13/viper"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
@@ -63,6 +64,17 @@ func main() {
 		log.Fatal(err)
 	}
 
+	collection := m.Database(opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection)
+
+	// Add TTL index to set threshold data expiration
+	index_opt := options.Index()
+	index_opt.SetExpireAfterSeconds(int32(opts.Configuration.ExpireAfterSeconds))
+	ttlIndex := mongo.IndexModel{Keys: bson.M{"startTime": 1}, Options: index_opt}
+
+	if _, err := collection.Indexes().CreateOne(ctx, ttlIndex); err != nil {
+		log.Println("Could not create ttl index:", err)
+	}
+
 	defer func() {
 		if err = m.Disconnect(ctx); err != nil {
 			panic(err)
@@ -70,10 +82,8 @@ func main() {
 	}()
 
 	plugin := &mongoStorePlugin{
-		reader: jager_mongodb.NewSpanReader(m.Database(
-			opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection), logger),
-		writer: jager_mongodb.NewSpanWriter(m.Database(
-			opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection), logger),
+		reader: jager_mongodb.NewSpanReader(collection, logger),
+		writer: jager_mongodb.NewSpanWriter(collection, logger),
 	}
 
 	grpc.Serve(&shared.PluginServices{
