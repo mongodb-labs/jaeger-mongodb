@@ -2,5 +2,4 @@
 mongo_url: "mongodb://10.1.15.231:27017"
 mongo_database: jaeger-tracing
 mongo_collection: traces
-archive_collection: archiveTraces
 expire_after_seconds: 1209600
