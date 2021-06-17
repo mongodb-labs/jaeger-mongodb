@@ -10,6 +10,7 @@ const (
 	mongoUrl           = "mongo_url"
 	mongoDatabase      = "mongo_database"
 	mongoCollection    = "mongo_collection"
+	archiveCollection  = "archive_collection"
 	expireAfterSeconds = "expire_after_seconds"
 )
 
@@ -17,6 +18,7 @@ type Configuration struct {
 	MongoUrl           string `yaml:"mongo_url"`
 	MongoDatabase      string `yaml:"mongo_database"`
 	MongoCollection    string `yaml:"mongo_collection"`
+	ArchiveCollection  string `yaml:"archive_collection"`
 	ExpireAfterSeconds int    `yaml:"expire_after_seconds"`
 }
 
@@ -36,10 +38,12 @@ func (opt *Options) InitFromViper(v *viper.Viper) {
 	v.SetDefault(mongoUrl, "mongodb://localhost:27017")
 	v.SetDefault(mongoDatabase, "traces")
 	v.SetDefault(mongoCollection, "spans")
+	v.SetDefault(archiveCollection, "archiveTraces")
 	v.SetDefault(expireAfterSeconds, 1209600)
 
 	opt.Configuration.MongoUrl = v.GetString(mongoUrl)
 	opt.Configuration.MongoDatabase = v.GetString(mongoDatabase)
 	opt.Configuration.MongoCollection = v.GetString(mongoCollection)
+	opt.Configuration.ArchiveCollection = v.GetString(archiveCollection)
 	opt.Configuration.ExpireAfterSeconds = v.GetInt(expireAfterSeconds)
 }

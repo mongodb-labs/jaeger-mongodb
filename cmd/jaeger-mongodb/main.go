@@ -35,6 +35,12 @@ func main() {
 		JSONFormat: true,
 	})
 
+	archiveLogger := hclog.New(&hclog.LoggerOptions{
+		Name:       "jaeger-mongodb",
+		Level:      hclog.Warn, // Jaeger only captures >= Warn, so don't bother logging below Warn
+		JSONFormat: true,
+	})
+
 	v := viper.New()
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
@@ -65,6 +71,7 @@ func main() {
 	}
 
 	collection := m.Database(opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection)
+	archiveCollection := m.Database(opts.Configuration.MongoDatabase).Collection(opts.Configuration.ArchiveCollection)
 
 	// Add TTL index to set threshold data expiration
 	index_opt := options.Index()
@@ -86,15 +93,25 @@ func main() {
 		writer: jager_mongodb.NewSpanWriter(collection, logger),
 	}
 
+	archivePlugin := &mongoStorePlugin{
+		reader: jager_mongodb.NewArchiveReader(archiveCollection, archiveLogger),
+		writer: jager_mongodb.NewSpanWriter(archiveCollection, archiveLogger),
+	}
+
 	grpc.Serve(&shared.PluginServices{
-		Store: plugin,
-		//TODO(dmichel): ArchiveStore: plugin,
+		Store:        plugin,
+		ArchiveStore: archivePlugin,
 	})
 
 }
 
 type mongoStorePlugin struct {
 	reader *jager_mongodb.SpanReader
+	writer *jager_mongodb.SpanWriter
+}
+
+type archiveStorePlugin struct {
+	reader *jager_mongodb.ArchiveReader
 	writer *jager_mongodb.SpanWriter
 }
 
@@ -107,5 +124,13 @@ func (s *mongoStorePlugin) SpanReader() spanstore.Reader {
 }
 
 func (s *mongoStorePlugin) SpanWriter() spanstore.Writer {
+	return s.writer
+}
+
+func (s *mongoStorePlugin) ArchiveSpanReader() spanstore.Reader {
+	return s.reader
+}
+
+func (s *mongoStorePlugin) ArchiveSpanWriter() spanstore.Writer {
 	return s.writer
 }
