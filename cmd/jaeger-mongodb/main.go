@@ -88,7 +88,6 @@ func main() {
 
 	grpc.Serve(&shared.PluginServices{
 		Store: plugin,
-		//TODO(dmichel): ArchiveStore: plugin,
 	})
 
 }

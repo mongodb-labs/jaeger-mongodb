@@ -66,6 +66,10 @@
 
 6. You can then play around with the HotROD application, and the traces will be stored to the local MongoDB database that we previously set up. The traces will reflect in the Jaeger UI. If you have MongoDB compass install, you can connect to it to visualize the data.
 
+
+## Archive
+- We have attempted to roll out archive storage capability using grpc plugin, but currently Jaeger UI does not have an easy way to tell whether traces have been archived or not. In addition, you can also archive the same trace for an unlimited amount of times, which could result in lots of duplicate data in the archive storage. Therefore we have decided to skip the feature at the moment.
+  
 ## Credit
 
 This project is based on work from [jaeger] and [jaeger-influxdb]. Thank you authors!
