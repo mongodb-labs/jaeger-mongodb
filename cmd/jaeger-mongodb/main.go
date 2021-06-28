@@ -23,7 +23,6 @@ import (
 )
 
 var configPath string
-var defaultConfigPath = "run/default-config.yaml"
 
 func main() {
 	flag.StringVar(&configPath, "config", "", "A path to the plugin's configuration file")
@@ -38,16 +37,13 @@ func main() {
 	v := viper.New()
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
-	if configPath == "" { // If configPath is absent from arguments, set default config
-		v.SetConfigFile(defaultConfigPath)
-	} else {
+	if configPath != "" { // If configPath is absent from arguments, set default config
 		v.SetConfigFile(configPath)
-	}
-
-	err := v.ReadInConfig()
-	if err != nil {
-		logger.Error("failed to parse configuration file", "err", err)
-		os.Exit(1)
+		err := v.ReadInConfig()
+		if err != nil {
+			logger.Error("failed to parse configuration file", "err", err)
+			os.Exit(1)
+		}
 	}
 
 	opts := jaeger_mongodb.Options{}
