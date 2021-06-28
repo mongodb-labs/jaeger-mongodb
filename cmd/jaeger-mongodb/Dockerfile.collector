@@ -1,4 +1,4 @@
-FROM jaegertracing/jaeger-collector:latest
+FROM jaegertracing/jaeger-collector:1.23.0
 
 FROM alpine
 COPY --from=0 /go/bin/collector-linux /go/bin/collector-linux
