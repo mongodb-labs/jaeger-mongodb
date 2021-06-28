@@ -1,0 +1,10 @@
+FROM jaegertracing/jaeger-query:latest
+
+FROM alpine
+COPY --from=0 /go/bin/query-linux /go/bin/query-linux
+COPY jaeger-mongodb /bin/jaeger-mongodb
+
+ENV SPAN_STORAGE_TYPE grpc-plugin
+ENV GRPC_STORAGE_PLUGIN_BINARY /bin/jaeger-mongodb
+
+ENTRYPOINT /go/bin/query-linux
