@@ -1,5 +1,12 @@
 # jaeger-mongodb 
 
+> MongoDB based Jaeger storage
+
+**This Repository is NOT an officially supported MongoDB product**
+
+The jaeger-mongodb plugin uses the [grpc] storage architecture to interface with the query and collector services.
+
+
 ## Prerequisites:
 1. Download latest version of [Docker]
 2. Download latest version of [Go]
@@ -80,3 +87,4 @@ This project is based on work from [jaeger] and [jaeger-influxdb]. Thank you aut
 [Go]: https://golang.org/doc/install
 [MongoDB-Compass]: https://www.mongodb.com/products/compass
 [HotROD]: https://github.com/jaegertracing/jaeger/tree/master/examples/hotrod
+[grpc]: https://github.com/jaegertracing/jaeger/tree/master/plugin/storage/grpc
