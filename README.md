@@ -75,7 +75,7 @@ The jaeger-mongodb plugin uses the [grpc] storage architecture to interface with
 
 ## Configurable Options
 - Below is a list of options where you can configure with the mongodb storage plugin.
-- To customize any options, set the `GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE` environment variable to point to a config.yaml file with options (for example, refer to `/configs/example.config.yaml` ).
+- To customize any options, set the `GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE` environment variable to point to a config.yaml file with options (for example, refer to `/configs/example-config.yaml` ).
 
 |Configurable Options | Description | Default Value|
 | -----------         | ---------------------------| ------ |
