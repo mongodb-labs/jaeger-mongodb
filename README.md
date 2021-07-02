@@ -56,12 +56,12 @@ The jaeger-mongodb plugin uses the [grpc] storage architecture to interface with
         -v $(pwd):/app \
         -e SPAN_STORAGE_TYPE=grpc-plugin \
         -e GRPC_STORAGE_PLUGIN_BINARY=/app/jaeger-mongodb \
-        -e GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE=/app/configs/default-config.yaml \
+        -e GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE=/app/configs/example-config.yaml \
         jaegertracing/all-in-one:1.22
         ```
-    - Note: If you have a custom configuration yaml file that you would like to use, change default-config.yaml to the name of your custom config file.
-
-4. In a separate terminal tab/window, start mongodb
+- Note that example.config.yaml is just an example of how you could customize your configuration. For more details about configuration, please refer to the Environment Variables section.
+  
+4. In a separate terminal tab/window, start mongodb:
     ```bash
     mongodb
     ```
@@ -73,6 +73,19 @@ The jaeger-mongodb plugin uses the [grpc] storage architecture to interface with
 
 6. You can then play around with the HotROD application, and the traces will be stored to the local MongoDB database that we previously set up. The traces will reflect in the Jaeger UI. If you have MongoDB compass install, you can connect to it to visualize the data.
 
+## Configurable Options
+- Below is a list of options where you can configure with the mongodb storage plugin.
+- To customize any options, set the `GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE` environment variable to point to a config.yaml file with options (for example, refer to `/configs/example-config.yaml` ).
+
+|Configurable Options | Description | Default Value|
+| -----------         | ---------------------------| ------ |
+| `mongo_url`| The mongodb instance that you would like to use to store all the traces. | http://localhost:27017|
+| `mongo_database` | Name of the database that stores the trace data| traces| 
+| `mongo_collection` | Name of the collection in `mongo_database` | spans |
+| `expire_after_seconds` | The duration (in seconds) where the trace data remains in the database| 1209600 (14 days) |
+
+- Note that all the options above can be passed in as environment variables as well, by capitalizing the options. For instance, you can rename the mongo database by passing the environment variable `MONGO_DATABASE: jaeger-tracing`.
+- For more information on jaeger environment variables or cli flags (e.g. `QUERY_UI_CONFIG`), please refer to the [Jaeger CLI Flags Documentation].
 
 ## Archive
 - We have attempted to roll out archive storage capability using grpc plugin, but currently Jaeger UI does not have an easy way to tell whether traces have been archived or not. In addition, you can also archive the same trace for an unlimited amount of times, which could result in lots of duplicate data in the archive storage. Therefore we have decided to skip the feature at the moment.
@@ -88,3 +101,4 @@ This project is based on work from [jaeger] and [jaeger-influxdb]. Thank you aut
 [MongoDB-Compass]: https://www.mongodb.com/products/compass
 [HotROD]: https://github.com/jaegertracing/jaeger/tree/master/examples/hotrod
 [grpc]: https://github.com/jaegertracing/jaeger/tree/master/plugin/storage/grpc
+[Jaeger CLI Flags Documentation]: https://www.jaegertracing.io/docs/1.23/cli/
