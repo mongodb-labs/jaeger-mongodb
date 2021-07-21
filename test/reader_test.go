@@ -22,8 +22,6 @@ import (
 
 const ip_address = "10.1.15.231"
 
-const index = -1
-
 var dummyKv []model.KeyValue = []model.KeyValue{
 	{
 		Key:    "http.status_code",
@@ -390,14 +388,10 @@ func TestReaderIntegration(t *testing.T) {
 			},
 		},
 	}
-	for idx, tc := range testCases {
-		// Index equals to -1: Run all tests
-		// Otherwise: Run test case by index (0-indexed).
-		if index == -1 || idx == index {
-			println(tc.name)
-			tc.runAssertion(tc.endTs, tc.lookback)
-			println("====")
-		}
+	for _, tc := range testCases {
+		println(tc.name)
+		tc.runAssertion(tc.endTs, tc.lookback)
+		println("====")
 	}
 }
 func BenchmarkTagFiltering(b *testing.B) {
