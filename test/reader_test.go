@@ -5,6 +5,7 @@ import (
 	"fmt"
 	jaeger_mongodb "jaeger-mongodb/internal/jaeger-mongodb"
 	"log"
+	"net"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,8 +21,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const ip_address = "10.1.15.231"
-
 var dummyKv []model.KeyValue = []model.KeyValue{
 	{
 		Key:    "http.status_code",
@@ -36,6 +35,23 @@ var statusCode404 []model.KeyValue = []model.KeyValue{
 		VType:  model.Int64Type,
 		VInt64: 404,
 	},
+}
+
+// Returns the non-loopback local IP address of the host
+func GetLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, address := range addrs {
+		// if it is not a loopback ip address, use it
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
 }
 
 // Helper function to verify depedency pattern is valid.
@@ -98,8 +114,10 @@ func GenerateTraces(ctx context.Context, writer *jaeger_mongodb.SpanWriter, numT
 	}
 }
 func TestReaderIntegration(t *testing.T) {
+	ip := GetLocalIP()
+	fmt.Println(ip)
 	m, err := mongo.Connect(context.TODO(), options.Client().
-		ApplyURI(fmt.Sprintf("mongodb://%s:27017", ip_address)).
+		ApplyURI(fmt.Sprintf("mongodb://%s:27017", GetLocalIP())).
 		SetWriteConcern(writeconcern.New(writeconcern.W(1))))
 
 	if err != nil {
@@ -396,7 +414,7 @@ func TestReaderIntegration(t *testing.T) {
 }
 func BenchmarkTagFiltering(b *testing.B) {
 	m, err := mongo.Connect(context.TODO(), options.Client().
-		ApplyURI(fmt.Sprintf("mongodb://%s:27017", ip_address)).
+		ApplyURI(fmt.Sprintf("mongodb://%s:27017", GetLocalIP())).
 		SetWriteConcern(writeconcern.New(writeconcern.W(1))))
 	if err != nil {
 		log.Fatal(err)
@@ -450,7 +468,7 @@ func BenchmarkTagFiltering(b *testing.B) {
 
 func TestTagFiltering(t *testing.T) {
 	m, err := mongo.Connect(context.TODO(), options.Client().
-		ApplyURI(fmt.Sprintf("mongodb://%s:27017", ip_address)).
+		ApplyURI(fmt.Sprintf("mongodb://%s:27017", GetLocalIP())).
 		SetWriteConcern(writeconcern.New(writeconcern.W(1))))
 	if err != nil {
 		log.Fatal(err)
