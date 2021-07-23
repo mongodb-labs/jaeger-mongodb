@@ -146,7 +146,6 @@ func (s *SpanReader) GetDependencies(ctx context.Context, endTs time.Time, lookb
 		zap.S().Error(err)
 	}
 	// Map spanID to serviceName.
-	dependencies := []model.DependencyLink{}
 	serviceNameBySpanID := make(map[model.SpanID]string)
 	m := make(map[string]*model.DependencyLink)
 	for _, trace := range traces {
@@ -174,13 +173,13 @@ func (s *SpanReader) GetDependencies(ctx context.Context, endTs time.Time, lookb
 		}
 	}
 
+	dls := []model.DependencyLink{}
 	for _, dl := range m {
 		if dl.Parent != dl.Child {
-			dependencies = append(dependencies, *dl)
+			dls = append(dls, *dl)
 		}
 	}
-	// expectedDependencies = append(expectedDependencies, {})
-	return dependencies, nil
+	return dls, nil
 }
 
 // Internal method used to find traces
