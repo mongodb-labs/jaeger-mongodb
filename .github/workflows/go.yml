@@ -32,5 +32,10 @@ jobs:
     - name: Build
       run: go build -o jaeger-mongodb cmd/jaeger-mongodb/main.go
 
-#    - name: Test
-#      run: go test -v .
+    - name: Create Mongo Docker container
+      run: docker run -d -p 27017:27017 mongo:4.4
+
+    - name: Test with mongoDB local instance
+      run: go test ./test
+      env:
+        MONGO_URL: "mongodb://localhost:27017"
