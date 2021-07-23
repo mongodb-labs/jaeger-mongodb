@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.uber.org/zap"
 )
 
 var (
@@ -135,7 +137,49 @@ func (s *SpanReader) FindTraceIDs(ctx context.Context, query *spanstore.TraceQue
 }
 
 func (s *SpanReader) GetDependencies(ctx context.Context, endTs time.Time, lookback time.Duration) ([]model.DependencyLink, error) {
-	return nil, nil
+	traces, err := s.FindTraces(ctx, &spanstore.TraceQueryParameters{
+		StartTimeMin: endTs.Add(-1 * lookback),
+		StartTimeMax: endTs,
+		NumTraces:    math.MaxInt64,
+	})
+	if err != nil {
+		zap.S().Error(err)
+	}
+	// Map spanID to serviceName.
+	serviceNameBySpanID := make(map[model.SpanID]string)
+	m := make(map[string]*model.DependencyLink)
+	for _, trace := range traces {
+		for _, s := range trace.Spans {
+			serviceNameBySpanID[s.SpanID] = s.Process.ServiceName
+		}
+	}
+	for _, trace := range traces {
+		for _, s := range trace.Spans {
+			for _, ref := range s.References {
+				if ref.GetRefType() == model.SpanRefType_CHILD_OF && serviceNameBySpanID[ref.SpanID] != "" {
+					parent, child := serviceNameBySpanID[ref.SpanID], s.Process.ServiceName
+					dl := m[parent+child]
+					if dl == nil {
+						dl = &model.DependencyLink{
+							Parent:    parent,
+							Child:     child,
+							CallCount: 0,
+						}
+						m[parent+child] = dl
+					}
+					dl.CallCount++
+				}
+			}
+		}
+	}
+
+	dls := []model.DependencyLink{}
+	for _, dl := range m {
+		if dl.Parent != dl.Child {
+			dls = append(dls, *dl)
+		}
+	}
+	return dls, nil
 }
 
 // Internal method used to find traces

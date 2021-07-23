@@ -1,7 +1,4 @@
 .idea/
 .DS_Store
 *.sh
-jaeger-mongodb
-/test
 .vscode
-_test.go
