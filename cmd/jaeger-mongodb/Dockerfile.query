@@ -1,6 +1,9 @@
-FROM jaegertracing/jaeger-query:1.23.0
+ARG base_image
+ARG jaeger_version
 
-FROM alpine
+FROM jaegertracing/jaeger-query:$jaeger_version
+
+FROM $base_image
 COPY --from=0 /go/bin/query-linux /go/bin/query-linux
 COPY jaeger-mongodb /bin/jaeger-mongodb
 
