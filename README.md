@@ -6,6 +6,14 @@
 
 The jaeger-mongodb plugin uses the [grpc] storage architecture to interface with the query and collector services.
 
+## Use
+
+Docker images are provided that contain the jaeger collector and query components with the jaeger mongodb plugin included.
+
+* https://quay.io/repository/jaeger-mongodb/jaeger-collector-mongodb?tab=tags 
+* https://quay.io/repository/jaeger-mongodb/jaeger-query-mongodb?tab=tags
+
+# Development
 
 ## Prerequisites:
 1. Download latest version of [Docker]
