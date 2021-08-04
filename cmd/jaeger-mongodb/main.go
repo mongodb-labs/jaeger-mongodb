@@ -61,7 +61,7 @@ func main() {
 	}
 
 	collection := m.Database(opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection)
-
+	readerStorage := jaeger_mongodb.NewMongoReaderStorage(collection)
 	// Add TTL index to set threshold data expiration
 	index_opt := options.Index()
 	index_opt.SetExpireAfterSeconds(int32(opts.Configuration.ExpireAfterSeconds))
@@ -78,7 +78,7 @@ func main() {
 	}()
 
 	plugin := &mongoStorePlugin{
-		reader: jaeger_mongodb.NewSpanReader(collection, logger),
+		reader: jaeger_mongodb.NewSpanReader(logger, readerStorage),
 		writer: jaeger_mongodb.NewSpanWriter(collection, logger),
 	}
 
