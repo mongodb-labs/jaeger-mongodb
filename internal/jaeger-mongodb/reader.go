@@ -21,16 +21,37 @@ var (
 	ErrTraceNotFound = errors.New("trace not found")
 )
 
-// SpanReader queries for traces in MongoDB.
-type SpanReader struct {
-	collection *mongo.Collection
-	log        hclog.Logger
+type ReaderStorage interface {
+	Distinct(ctx context.Context, field string, filter interface{}, opts *options.DistinctOptions) ([]interface{}, error)
+	Find(ctx context.Context, filter interface{}, opts *options.FindOptions) (*mongo.Cursor, error)
 }
 
-func NewSpanReader(collection *mongo.Collection, logger hclog.Logger) *SpanReader {
+type MongoReaderStorage struct {
+	c *mongo.Collection
+}
+
+func (m MongoReaderStorage) Distinct(ctx context.Context, field string, filter interface{}, opts *options.DistinctOptions) ([]interface{}, error) {
+	return m.c.Distinct(ctx, field, filter, opts)
+}
+
+func (m MongoReaderStorage) Find(ctx context.Context, filter interface{}, opts *options.FindOptions) (*mongo.Cursor, error) {
+	return m.c.Find(ctx, filter, opts)
+}
+
+func NewMongoReaderStorage(c *mongo.Collection) *MongoReaderStorage {
+	return &MongoReaderStorage{c: c}
+}
+
+// SpanReader queries for traces in MongoDB.
+type SpanReader struct {
+	log     hclog.Logger
+	storage ReaderStorage
+}
+
+func NewSpanReader(logger hclog.Logger, readerStorage ReaderStorage) *SpanReader {
 	return &SpanReader{
-		collection: collection,
-		log:        logger,
+		log:     logger,
+		storage: readerStorage,
 	}
 }
 
@@ -40,11 +61,9 @@ func (s *SpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (*mode
 	if err != nil {
 		return nil, err
 	}
-
 	for i := range tracesMap {
 		return tracesMap[i], nil
 	}
-
 	return nil, ErrTraceNotFound
 }
 
@@ -52,13 +71,10 @@ func (s *SpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (*mode
 // within its retention period.
 func (s *SpanReader) GetServices(ctx context.Context) ([]string, error) {
 	opts := options.Distinct().SetMaxTime(2 * time.Second)
-
-	services, err := s.collection.Distinct(ctx, "process.serviceName", bson.D{}, opts)
-
+	services, err := s.storage.Distinct(ctx, "process.serviceName", bson.D{}, opts)
 	if err != nil {
 		return nil, fmt.Errorf("distinct call failed: %s", err)
 	}
-
 	return toStringArray(services)
 }
 
@@ -66,13 +82,11 @@ func (s *SpanReader) GetServices(ctx context.Context) ([]string, error) {
 // known to the backend from spans within its retention period.
 func (s *SpanReader) GetOperations(ctx context.Context, query spanstore.OperationQueryParameters) ([]spanstore.Operation, error) {
 	opts := options.Distinct().SetMaxTime(2 * time.Second)
-
 	filter := bson.D{}
 	if query.ServiceName != "" {
 		filter = bson.D{{Key: "process.serviceName", Value: query.ServiceName}}
 	}
-
-	ops, err := s.collection.Distinct(ctx, "operationName", filter, opts)
+	ops, err := s.storage.Distinct(ctx, "operationName", filter, opts)
 
 	if err != nil {
 		return nil, fmt.Errorf("distinct call failed: %s", err)
@@ -189,7 +203,7 @@ func (s *SpanReader) findTraces(ctx context.Context, ids []string) (map[string]*
 	}
 
 	findOpts := options.FindOptions{}
-	cur, err := s.collection.Find(ctx, filter, &findOpts)
+	cur, err := s.storage.Find(ctx, filter, &findOpts)
 
 	if err != nil {
 		s.log.Error("error finding spans", "err", err)
@@ -227,7 +241,9 @@ func (s *SpanReader) findTraces(ctx context.Context, ids []string) (map[string]*
 			return nil, err
 		}
 		tags, err := s.convertKeyValues(ms.Tags)
-
+		if err != nil {
+			return nil, err
+		}
 		pTags, err := s.convertKeyValues(ms.Process.Tags)
 		if err != nil {
 			return nil, err
@@ -311,7 +327,7 @@ func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQue
 
 	opts := options.DistinctOptions{}
 
-	traceIds, err := s.collection.Distinct(ctx, "traceID", filter, &opts)
+	traceIds, err := s.storage.Distinct(ctx, "traceID", filter, &opts)
 	if err != nil {
 		s.log.Error("error getting traceIDs", "err", err)
 		return nil, fmt.Errorf("error getting traceIDs: %w", err)
