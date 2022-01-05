@@ -79,7 +79,7 @@ func main() {
 		ctx,
 		[]mongo.IndexModel{ttlIndex, serviceNameIndex, traceIDIndex},
 	); err != nil {
-		log.Println("Could not create indices:", err)
+		log.Println("Could not create indexes:", err)
 	}
 
 	defer func() {
