@@ -62,13 +62,24 @@ func main() {
 
 	collection := m.Database(opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection)
 	readerStorage := jaeger_mongodb.NewMongoReaderStorage(collection)
+
 	// Add TTL index to set threshold data expiration
 	index_opt := options.Index()
 	index_opt.SetExpireAfterSeconds(int32(opts.Configuration.ExpireAfterSeconds))
 	ttlIndex := mongo.IndexModel{Keys: bson.M{"startTime": 1}, Options: index_opt}
+	serviceNameIndex := mongo.IndexModel{
+		Keys: bson.D{
+			bson.E{Key: "process.serviceName", Value: 1},
+			bson.E{Key: "operationName", Value: 1},
+		},
+	}
+	traceIDIndex := mongo.IndexModel{Keys: bson.M{"traceID": 1}}
 
-	if _, err := collection.Indexes().CreateOne(ctx, ttlIndex); err != nil {
-		log.Println("Could not create ttl index:", err)
+	if _, err := collection.Indexes().CreateMany(
+		ctx,
+		[]mongo.IndexModel{ttlIndex, serviceNameIndex, traceIDIndex},
+	); err != nil {
+		log.Println("Could not create indexes:", err)
 	}
 
 	defer func() {
