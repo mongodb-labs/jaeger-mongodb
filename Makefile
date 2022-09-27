@@ -15,12 +15,12 @@ clean::
 
 .PHONY: build-linux
 build-linux: clean
-	GOOS=linux go build ./cmd/jaeger-mongodb
+	GOOS=linux GOARCH=amd64 go build ./cmd/jaeger-mongodb
 
 .PHONY: docker-build
 docker-build: build-linux
 	for component in collector query ; do \
-  		docker build . -f ./cmd/jaeger-mongodb/Dockerfile.$$component \
+  		docker buildx build . -f ./cmd/jaeger-mongodb/Dockerfile.$$component \
   			--build-arg base_image=$(BASE_IMAGE) \
   			--build-arg jaeger_version=$(JAEGER_VERSION) \
   			--platform linux/amd64 \
