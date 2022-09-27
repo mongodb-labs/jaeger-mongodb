@@ -1,7 +1,7 @@
 GIT_HASH?=$(shell git log --pretty=format:'%h' -n 1)
 DOCKER_NAMESPACE?=quay.io/jaeger-mongodb
 
-BASE_IMAGE?=alpine:3.16.1
+BASE_IMAGE?=alpine:3.16.2
 JAEGER_VERSION?=1.37.0
 
 .PHONY: test
