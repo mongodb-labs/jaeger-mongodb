@@ -23,6 +23,7 @@ docker-build: build-linux
   		docker build . -f ./cmd/jaeger-mongodb/Dockerfile.$$component \
   			--build-arg base_image=$(BASE_IMAGE) \
   			--build-arg jaeger_version=$(JAEGER_VERSION) \
+  			--platform linux/amd64 \
   			-t $(DOCKER_NAMESPACE)/jaeger-$$component-mongodb:$(JAEGER_VERSION)-$(GIT_HASH) ; \
   	done
 
