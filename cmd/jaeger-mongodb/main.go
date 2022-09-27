@@ -18,7 +18,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
-
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/sdk/resource"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	jaeger_mongodb "jaeger-mongodb/internal/jaeger-mongodb"
 )
 
@@ -63,10 +67,55 @@ func main() {
 	collection := m.Database(opts.Configuration.MongoDatabase).Collection(opts.Configuration.MongoCollection)
 	readerStorage := jaeger_mongodb.NewMongoReaderStorage(collection)
 
-	// Add TTL index to set threshold data expiration
+	createIndexes(ctx, logger, collection, opts)
+
+	defer func() {
+		if err = m.Disconnect(ctx); err != nil {
+			panic(err)
+		}
+	}()
+
+	if opts.Configuration.OtelTracingRatio > 0.0 {
+		tp, err := setupTraceExporter(opts.Configuration.OtelExporterEndpoint, opts.Configuration.OtelTracingRatio)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Register our TracerProvider as the global so any imported
+		// instrumentation in the future will default to using it.
+		otel.SetTracerProvider(tp)
+		ctx, cancel = context.WithCancel(context.Background())
+		defer cancel()
+
+		// Cleanly shutdown and flush telemetry when the application exits.
+		defer func(ctx context.Context) {
+			// Do not make the application hang when it is shutdown.
+			ctx, cancel = context.WithTimeout(ctx, time.Second*5)
+			defer cancel()
+			if err := tp.Shutdown(ctx); err != nil {
+				log.Fatal(err)
+			}
+		}(ctx)
+	}
+
+	plugin := &mongoStorePlugin{
+		reader: jaeger_mongodb.NewSpanReader(readerStorage, logger, opts.Configuration.MongoTimeoutDuration),
+		writer: jaeger_mongodb.NewSpanWriter(collection, logger),
+	}
+
+	grpc.Serve(&shared.PluginServices{
+		Store: plugin,
+	})
+
+}
+
+func createIndexes(ctx context.Context, logger hclog.Logger, collection *mongo.Collection, opts jaeger_mongodb.Options) {
+	// Add TTL index to set threshold for span expiration
 	index_opt := options.Index()
-	index_opt.SetExpireAfterSeconds(int32(opts.Configuration.ExpireAfterSeconds))
+	index_opt.SetExpireAfterSeconds(int32(opts.Configuration.MongoSpanTTLDuration.Seconds()))
+
 	ttlIndex := mongo.IndexModel{Keys: bson.M{"startTime": 1}, Options: index_opt}
+
 	serviceNameIndex := mongo.IndexModel{
 		Keys: bson.D{
 			bson.E{Key: "process.serviceName", Value: 1},
@@ -79,24 +128,25 @@ func main() {
 		ctx,
 		[]mongo.IndexModel{ttlIndex, serviceNameIndex, traceIDIndex},
 	); err != nil {
-		log.Println("Could not create indexes:", err)
+		logger.Error("Could not create indexes:", err)
+	}
+}
+
+func setupTraceExporter(url string, ratio float64) (*tracesdk.TracerProvider, error) {
+	exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(url)))
+	if err != nil {
+		return nil, err
 	}
 
-	defer func() {
-		if err = m.Disconnect(ctx); err != nil {
-			panic(err)
-		}
-	}()
-
-	plugin := &mongoStorePlugin{
-		reader: jaeger_mongodb.NewSpanReader(logger, readerStorage),
-		writer: jaeger_mongodb.NewSpanWriter(collection, logger),
-	}
-
-	grpc.Serve(&shared.PluginServices{
-		Store: plugin,
-	})
-
+	tp := tracesdk.NewTracerProvider(
+		tracesdk.WithBatcher(exp),
+		tracesdk.WithSampler(tracesdk.TraceIDRatioBased(ratio)),
+		tracesdk.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String("jaeger-query"),
+		)),
+	)
+	return tp, nil
 }
 
 type mongoStorePlugin struct {

@@ -40,6 +40,8 @@ var spanTagsFailure []model.KeyValue = []model.KeyValue{
 	},
 }
 
+var timeoutDuration, _ = time.ParseDuration("30s")
+
 // Helper function to verify depedency pattern is valid.
 func isValidDepedencyPattern(pattern string) bool {
 	switch pattern {
@@ -148,13 +150,13 @@ func TestReaderIntegration(t *testing.T) {
 		runAssertion func(time.Time, time.Duration)
 	}{
 		{
-			name:     "Test GetDependencies -- single depedency",
+			name:     "Test GetDependencies -- single dependency",
 			endTs:    time.Date(2021, 7, 2, 1, 1, 1, 1, time.UTC),
 			lookback: fourteenDays,
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				// Generate single dependency traces
 				generateTraces(ctx, writer, 100, "single", false)
@@ -186,7 +188,7 @@ func TestReaderIntegration(t *testing.T) {
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				// Generate traces with circular dependencies
 				generateTraces(ctx, writer, 50, "circular", false)
@@ -218,7 +220,7 @@ func TestReaderIntegration(t *testing.T) {
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				dls, err := reader.GetDependencies(ctx, endTs, lookback)
 				if err != nil {
 					t.Error(err)
@@ -234,7 +236,7 @@ func TestReaderIntegration(t *testing.T) {
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				generateTraces(ctx, writer, 3, "single", false)
 				dls, err := reader.GetDependencies(ctx, endTs, lookback)
@@ -266,7 +268,7 @@ func TestReaderIntegration(t *testing.T) {
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				generateTraces(ctx, writer, 100, "circular", true)
 				dls, err := reader.GetDependencies(ctx, endTs, lookback)
@@ -284,7 +286,7 @@ func TestReaderIntegration(t *testing.T) {
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				generateTraces(ctx, writer, 50, "circular", false)
 				ops, err := reader.GetServices(ctx)
@@ -313,7 +315,7 @@ func TestReaderIntegration(t *testing.T) {
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				generateTraces(ctx, writer, 50, "circular", false)
 				ops, err := reader.GetOperations(ctx, spanstore.OperationQueryParameters{})
@@ -335,7 +337,7 @@ func TestReaderIntegration(t *testing.T) {
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				generateTraces(ctx, writer, 50, "single", false)
 				for i := 0; i < 50; i++ {
@@ -354,7 +356,7 @@ func TestReaderIntegration(t *testing.T) {
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				generateTraces(ctx, writer, 50, "single", false)
 				traces, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
@@ -380,7 +382,7 @@ func TestReaderIntegration(t *testing.T) {
 			runAssertion: func(endTs time.Time, lookback time.Duration) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				generateTraces(ctx, writer, 50, "circular", false)
 				traces200, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
@@ -443,7 +445,7 @@ func TestReaderUnit(t *testing.T) {
 						},
 						nil,
 					)
-				s := jaeger_mongodb.NewSpanReader(nil, m)
+				s := jaeger_mongodb.NewSpanReader(m, nil, timeoutDuration)
 				svcs, err := s.GetServices(context.Background())
 				if err != nil {
 					t.Error(err)
@@ -466,7 +468,7 @@ func TestReaderUnit(t *testing.T) {
 						},
 						nil,
 					)
-				s := jaeger_mongodb.NewSpanReader(nil, m)
+				s := jaeger_mongodb.NewSpanReader(m, nil, timeoutDuration)
 				ops, err := s.GetOperations(context.Background(), spanstore.OperationQueryParameters{})
 				if err != nil {
 					t.Error(err)
@@ -514,7 +516,7 @@ func BenchmarkTagFiltering(b *testing.B) {
 				collectionName := createNewCollectionName(uniqueCollectionName)
 				writer := jaeger_mongodb.NewSpanWriter(m.Database("jaeger-tracing-test").Collection(collectionName), nil)
 				readerStorage := jaeger_mongodb.NewMongoReaderStorage(m.Database("jaeger-tracing-test").Collection(collectionName))
-				reader := jaeger_mongodb.NewSpanReader(nil, readerStorage)
+				reader := jaeger_mongodb.NewSpanReader(readerStorage, nil, timeoutDuration)
 				generateTraces(ctx, writer, 100, "circular", false)
 				_, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
 					StartTimeMin: time.Date(2021, 7, 1, 1, 1, 1, 1, time.UTC),

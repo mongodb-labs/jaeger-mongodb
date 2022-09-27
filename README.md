@@ -85,12 +85,15 @@ Docker images are provided that contain the jaeger collector and query component
 - Below is a list of options where you can configure with the mongodb storage plugin.
 - To customize any options, set the `GRPC_STORAGE_PLUGIN_CONFIGURATION_FILE` environment variable to point to a config.yaml file with options (for example, refer to `/configs/example-config.yaml` ).
 
-|Configurable Options | Description | Default Value|
-| -----------         | ---------------------------| ------ |
-| `mongo_url`| The mongodb instance that you would like to use to store all the traces. | http://localhost:27017|
-| `mongo_database` | Name of the database that stores the trace data| traces| 
-| `mongo_collection` | Name of the collection in `mongo_database` | spans |
-| `expire_after_seconds` | The duration (in seconds) where the trace data remains in the database| 1209600 (14 days) |
+|Configurable Options | Description                                                             | Default Value                     |
+| -----------         |-------------------------------------------------------------------------|-----------------------------------|
+| `mongo_url`| The mongodb instance that you would like to use to store all the traces. | http://localhost:27017            |
+| `mongo_database` | Name of the database that stores the trace data                         | traces                            | 
+| `mongo_collection` | Name of the collection in `mongo_database`                              | spans                             |
+| `mongo_timeout_duration` | The timeout duration for commands sent to mongo                         | 5s                                |
+| `mongo_span_ttl_duration` | The duration where the trace data remains in the database               | 14d                               |
+| `otel_tracing_ratio` | Ratio of traces to sample 0.0 to 1.0. Tracing is disabled by default    | 0.0                               |
+| `otel_exporter_endpoint` | Exporter endpoint                                                       | http://localhost:14268/api/traces |
 
 - Note that all the options above can be passed in as environment variables as well, by capitalizing the options. For instance, you can rename the mongo database by passing the environment variable `MONGO_DATABASE: jaeger-tracing`.
 - For more information on jaeger environment variables or cli flags (e.g. `QUERY_UI_CONFIG`), please refer to the [Jaeger CLI Flags Documentation].

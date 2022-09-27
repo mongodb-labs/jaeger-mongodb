@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
+	"log"
 	"strconv"
 	"time"
 
@@ -14,11 +14,17 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.uber.org/zap"
 )
 
 var (
-	ErrTraceNotFound = errors.New("trace not found")
+	ErrTraceNotFound         = errors.New("trace not found")
+	Empty                    struct{}
+	maxTracesForDependencies = 25000
+	tracer                   = otel.Tracer("reader")
 )
 
 type ReaderStorage interface {
@@ -44,20 +50,26 @@ func NewMongoReaderStorage(c *mongo.Collection) *MongoReaderStorage {
 
 // SpanReader queries for traces in MongoDB.
 type SpanReader struct {
-	log     hclog.Logger
-	storage ReaderStorage
+	storage              ReaderStorage
+	log                  hclog.Logger
+	mongoTimeoutDuration time.Duration
 }
 
-func NewSpanReader(logger hclog.Logger, readerStorage ReaderStorage) *SpanReader {
+func NewSpanReader(readerStorage ReaderStorage, logger hclog.Logger, mongoTimeoutDuration time.Duration) *SpanReader {
 	return &SpanReader{
-		log:     logger,
-		storage: readerStorage,
+		log:                  logger,
+		storage:              readerStorage,
+		mongoTimeoutDuration: mongoTimeoutDuration,
 	}
 }
 
 // GetTrace retrieve the given traceID.
 func (s *SpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (*model.Trace, error) {
-	tracesMap, err := s.findTraces(ctx, []string{traceID.String()})
+	ctx, span := tracer.Start(ctx, "GetTrace")
+	defer span.End()
+
+	span.SetAttributes(attribute.Key("traceID").String(traceID.String()))
+	tracesMap, err := s.fetchTracesById(ctx, []string{traceID.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -70,25 +82,36 @@ func (s *SpanReader) GetTrace(ctx context.Context, traceID model.TraceID) (*mode
 // GetServices returns all service names known to the backend from spans
 // within its retention period.
 func (s *SpanReader) GetServices(ctx context.Context) ([]string, error) {
-	opts := options.Distinct().SetMaxTime(2 * time.Second)
+	_, span := tracer.Start(ctx, "GetServices")
+	defer span.End()
+
+	opts := options.Distinct().SetMaxTime(s.mongoTimeoutDuration)
+
 	services, err := s.storage.Distinct(ctx, "process.serviceName", bson.D{}, opts)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("distinct call failed: %s", err)
 	}
+
 	return toStringArray(services)
 }
 
 // GetOperations returns all operation names for a given service
 // known to the backend from spans within its retention period.
 func (s *SpanReader) GetOperations(ctx context.Context, query spanstore.OperationQueryParameters) ([]spanstore.Operation, error) {
-	opts := options.Distinct().SetMaxTime(2 * time.Second)
+	_, span := tracer.Start(ctx, "GetOperations")
+	defer span.End()
+
+	opts := options.Distinct().SetMaxTime(s.mongoTimeoutDuration)
 	filter := bson.D{}
 	if query.ServiceName != "" {
 		filter = bson.D{{Key: "process.serviceName", Value: query.ServiceName}}
+		span.SetAttributes(attribute.Key("process.serviceName").String(query.ServiceName))
 	}
 	ops, err := s.storage.Distinct(ctx, "operationName", filter, opts)
 
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("distinct call failed: %s", err)
 	}
 
@@ -102,8 +125,12 @@ func (s *SpanReader) GetOperations(ctx context.Context, query spanstore.Operatio
 //
 // If no matching traces are found, the function returns (nil, nil).
 func (s *SpanReader) FindTraces(ctx context.Context, query *spanstore.TraceQueryParameters) ([]*model.Trace, error) {
+	ctx, span := tracer.Start(ctx, "FindTraces")
+	defer span.End()
+
 	ids, err := s.findTraceIDs(ctx, query)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
@@ -111,8 +138,9 @@ func (s *SpanReader) FindTraces(ctx context.Context, query *spanstore.TraceQuery
 		return nil, nil
 	}
 
-	tracesMap, err := s.findTraces(ctx, ids)
+	tracesMap, err := s.fetchTracesById(ctx, ids)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 
@@ -129,6 +157,9 @@ func (s *SpanReader) FindTraces(ctx context.Context, query *spanstore.TraceQuery
 //
 // If no matching traces are found, the function returns (nil, nil).
 func (s *SpanReader) FindTraceIDs(ctx context.Context, query *spanstore.TraceQueryParameters) ([]model.TraceID, error) {
+	_, span := tracer.Start(ctx, "FindTraceIDs")
+	defer span.End()
+
 	ids, err := s.findTraceIDs(ctx, query)
 	if err != nil {
 		return nil, err
@@ -151,11 +182,16 @@ func (s *SpanReader) FindTraceIDs(ctx context.Context, query *spanstore.TraceQue
 }
 
 func (s *SpanReader) GetDependencies(ctx context.Context, endTs time.Time, lookback time.Duration) ([]model.DependencyLink, error) {
-	traces, err := s.FindTraces(ctx, &spanstore.TraceQueryParameters{
-		StartTimeMin: endTs.Add(-1 * lookback),
-		StartTimeMax: endTs,
-		NumTraces:    math.MaxInt64,
-	})
+	_, span := tracer.Start(ctx, "GetDependencies")
+	defer span.End()
+
+	traces, err := s.FindTraces(ctx,
+		&spanstore.TraceQueryParameters{
+			StartTimeMin: endTs.Add(-1 * lookback),
+			StartTimeMax: endTs,
+			NumTraces:    maxTracesForDependencies,
+		},
+	)
 	if err != nil {
 		zap.S().Error(err)
 	}
@@ -197,7 +233,10 @@ func (s *SpanReader) GetDependencies(ctx context.Context, endTs time.Time, lookb
 }
 
 // Internal method used to find traces
-func (s *SpanReader) findTraces(ctx context.Context, ids []string) (map[string]*model.Trace, error) {
+func (s *SpanReader) fetchTracesById(ctx context.Context, ids []string) (map[string]*model.Trace, error) {
+	_, span := tracer.Start(ctx, "fetchTracesById")
+	defer span.End()
+
 	filter := bson.M{
 		"traceID": bson.M{"$in": ids},
 	}
@@ -278,6 +317,9 @@ func (s *SpanReader) findTraces(ctx context.Context, ids []string) (map[string]*
 
 // Internal method used to find traceIDs.
 func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQueryParameters) ([]string, error) {
+	_, span := tracer.Start(ctx, "findTraceIds")
+	defer span.End()
+
 	filter := bson.M{}
 
 	filter["startTime"] = bson.M{
@@ -325,26 +367,39 @@ func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQue
 		}
 	}
 
-	opts := options.DistinctOptions{}
+	opts := options.FindOptions{
+		Projection: bson.D{{"traceID", 1}},
+		Sort:       bson.D{{"startTime", -1}},
+	}
 
-	traceIds, err := s.storage.Distinct(ctx, "traceID", filter, &opts)
+	cursor, err := s.storage.Find(ctx, filter, &opts)
+	defer cursor.Close(ctx)
+
 	if err != nil {
 		s.log.Error("error getting traceIDs", "err", err)
 		return nil, fmt.Errorf("error getting traceIDs: %w", err)
 	}
 
-	ids, err := toStringArray(traceIds)
-	if err != nil {
-		s.log.Error("error transforming traceIDs", "err", err)
-		return nil, fmt.Errorf("error transforming traceIDs: %w", err)
+	traceIds := make(map[string]interface{})
+	for cursor.Next(ctx) {
+		var span Span
+		if err = cursor.Decode(&span); err != nil {
+			log.Fatal(err)
+		}
+		traceIds[span.TraceID] = Empty
+
+		// Only fetch as many tracesIds up to the limit.
+		if len(traceIds) >= query.NumTraces {
+			break
+		}
 	}
 
-	limit := query.NumTraces
-	if limit > len(ids) {
-		limit = len(ids)
+	ids := make([]string, 0, query.NumTraces)
+	for k, _ := range traceIds {
+		ids = append(ids, k)
 	}
 
-	return ids[:limit], nil
+	return ids, nil
 }
 
 func toStringArray(arr []interface{}) ([]string, error) {
