@@ -110,23 +110,53 @@ func main() {
 }
 
 func createIndexes(ctx context.Context, logger hclog.Logger, collection *mongo.Collection, opts jaeger_mongodb.Options) {
-	// Add TTL index to set threshold for span expiration
-	index_opt := options.Index()
-	index_opt.SetExpireAfterSeconds(int32(opts.Configuration.MongoSpanTTLDuration.Seconds()))
-
-	ttlIndex := mongo.IndexModel{Keys: bson.M{"startTime": 1}, Options: index_opt}
+	ttlIndex := mongo.IndexModel{
+		Keys: bson.M{"startTime": 1},
+		Options: &options.IndexOptions{
+			ExpireAfterSeconds: Int32(int32(opts.Configuration.MongoSpanTTLDuration.Seconds())),
+			Name:               String("TTLIndex"),
+		},
+	}
 
 	serviceNameIndex := mongo.IndexModel{
 		Keys: bson.D{
 			bson.E{Key: "process.serviceName", Value: 1},
 			bson.E{Key: "operationName", Value: 1},
+			bson.E{Key: "startTime", Value: -1},
+		},
+		Options: &options.IndexOptions{
+			Name: String("ServiceNameAndOperationsIndex"),
 		},
 	}
-	traceIDIndex := mongo.IndexModel{Keys: bson.M{"traceID": 1}}
+
+	traceIDIndex := mongo.IndexModel{
+		Keys: bson.M{"traceID": 1},
+		Options: &options.IndexOptions{
+			Name: String("TraceIDIndex"),
+		},
+	}
+
+	tagsIndex := mongo.IndexModel{
+		Keys: bson.D{
+			bson.E{Key: "process.ServiceName", Value: 1},
+			bson.E{Key: "operationName", Value: 1},
+			bson.E{Key: "tags.key", Value: 1},
+			bson.E{Key: "tags.value", Value: 1},
+			bson.E{Key: "startTime", Value: -1},
+		},
+		Options: &options.IndexOptions{
+			Name: String("TagsIndex"),
+		},
+	}
 
 	if _, err := collection.Indexes().CreateMany(
 		ctx,
-		[]mongo.IndexModel{ttlIndex, serviceNameIndex, traceIDIndex},
+		[]mongo.IndexModel{
+			ttlIndex,
+			serviceNameIndex,
+			traceIDIndex,
+			tagsIndex,
+		},
 	); err != nil {
 		logger.Error("Could not create indexes:", err)
 	}
@@ -164,4 +194,12 @@ func (s *mongoStorePlugin) SpanReader() spanstore.Reader {
 
 func (s *mongoStorePlugin) SpanWriter() spanstore.Writer {
 	return s.writer
+}
+
+func Int32(i int32) *int32 {
+	return &i
+}
+
+func String(s string) *string {
+	return &s
 }
