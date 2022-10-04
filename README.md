@@ -91,7 +91,7 @@ Docker images are provided that contain the jaeger collector and query component
 | `mongo_database` | Name of the database that stores the trace data                         | traces                            | 
 | `mongo_collection` | Name of the collection in `mongo_database`                              | spans                             |
 | `mongo_timeout_duration` | The timeout duration for commands sent to mongo                         | 5s                                |
-| `mongo_span_ttl_duration` | The duration where the trace data remains in the database               | 14d                               |
+| `mongo_span_ttl_duration` | The duration where the trace data remains in the database               | 336h                              |
 | `otel_tracing_ratio` | Ratio of traces to sample 0.0 to 1.0. Tracing is disabled by default    | 0.0                               |
 | `otel_exporter_endpoint` | Exporter endpoint                                                       | http://localhost:14268/api/traces |
 

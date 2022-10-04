@@ -44,7 +44,7 @@ func (opt *Options) InitFromViper(v *viper.Viper) {
 	v.SetDefault(mongoDatabase, "traces")
 	v.SetDefault(mongoCollection, "spans")
 	v.SetDefault(mongoTimeoutDuration, "5s")
-	v.SetDefault(mongoSpanTTLDuration, "14d")
+	v.SetDefault(mongoSpanTTLDuration, "336h")
 	v.SetDefault(otelTracingRatio, 0.0) // tracing is disabled by default
 	v.SetDefault(otelExporterEndpoint, "http://localhost:14268/api/traces")
 

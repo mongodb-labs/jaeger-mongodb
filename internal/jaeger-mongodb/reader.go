@@ -330,11 +330,7 @@ func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQue
 	// Filtering by concatenation of tags.
 	tags_array := bson.A{}
 	for k, v := range query.Tags {
-		q := bson.M{
-			"tags.key":   k,
-			"tags.value": v,
-		}
-		tags_array = append(tags_array, q)
+		tags_array = append(tags_array, bson.M{"tags": bson.M{"$elemMatch": bson.M{"key": k, "value": v}}})
 	}
 	if len(tags_array) != 0 {
 		filter["$and"] = tags_array

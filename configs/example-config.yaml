@@ -1,5 +1,5 @@
 mongo_url: "mongodb://localhost:27017"
 mongo_database: traces
 mongo_collection: spans
-mongo_span_ttl_duration: "14d"
+mongo_span_ttl_duration: "336h"
 otel_tracing_ratio: 1.0
