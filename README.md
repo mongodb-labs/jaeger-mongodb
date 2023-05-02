@@ -1,4 +1,4 @@
-# jaeger-mongodb 
+# jaeger-mongodb
 
 > MongoDB based Jaeger storage
 
@@ -6,11 +6,20 @@
 
 The jaeger-mongodb plugin uses the [grpc] storage architecture to interface with the query and collector services.
 
+- [jaeger-mongodb](#jaeger-mongodb)
+  - [Use](#use)
+- [Development](#development)
+  - [Prerequisites:](#prerequisites)
+  - [Step by step instructions](#step-by-step-instructions)
+  - [Configurable Options](#configurable-options)
+  - [Archive](#archive)
+  - [Credit](#credit)
+
 ## Use
 
 Docker images are provided that contain the jaeger collector and query components with the jaeger mongodb plugin included.
 
-* https://quay.io/repository/jaeger-mongodb/jaeger-collector-mongodb?tab=tags 
+* https://quay.io/repository/jaeger-mongodb/jaeger-collector-mongodb?tab=tags
 * https://quay.io/repository/jaeger-mongodb/jaeger-query-mongodb?tab=tags
 
 # Development
@@ -44,7 +53,7 @@ Docker images are provided that contain the jaeger collector and query component
     ```bash
     ifconfig -l | xargs -n1 ipconfig getifaddr
     ```
-   
+
 3. Cd to the root directory (jaeger-mongodb) and run the following commands:
    - Build main.go with the following command. By default, we will be running and storing traces in MongoDB locally.
         ```bash
@@ -68,7 +77,7 @@ Docker images are provided that contain the jaeger collector and query component
         jaegertracing/all-in-one:1.22
         ```
 - Note that example.config.yaml is just an example of how you could customize your configuration. For more details about configuration, please refer to the Environment Variables section.
-  
+
 4. In a separate terminal tab/window, start mongodb:
     ```bash
     mongodb
@@ -88,7 +97,7 @@ Docker images are provided that contain the jaeger collector and query component
 |Configurable Options | Description                                                             | Default Value                     |
 | -----------         |-------------------------------------------------------------------------|-----------------------------------|
 | `mongo_url`| The mongodb instance that you would like to use to store all the traces. | http://localhost:27017            |
-| `mongo_database` | Name of the database that stores the trace data                         | traces                            | 
+| `mongo_database` | Name of the database that stores the trace data                         | traces                            |
 | `mongo_collection` | Name of the collection in `mongo_database`                              | spans                             |
 | `mongo_timeout_duration` | The timeout duration for commands sent to mongo                         | 5s                                |
 | `mongo_span_ttl_duration` | The duration where the trace data remains in the database               | 336h                              |
@@ -100,7 +109,7 @@ Docker images are provided that contain the jaeger collector and query component
 
 ## Archive
 - We have attempted to roll out archive storage capability using grpc plugin, but currently Jaeger UI does not have an easy way to tell whether traces have been archived or not. In addition, you can also archive the same trace for an unlimited amount of times, which could result in lots of duplicate data in the archive storage. Therefore we have decided to skip the feature at the moment.
-  
+
 ## Credit
 
 This project is based on work from [jaeger] and [jaeger-influxdb]. Thank you authors!
