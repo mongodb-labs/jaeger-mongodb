@@ -364,7 +364,7 @@ func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQue
 	}
 
 	opts := options.FindOptions{
-		Projection: bson.D{{"traceID", 1}},
+		Projection: bson.D{{"traceID", 1}, {"_id", 0}},
 		Sort:       bson.D{{"startTime", -1}},
 	}
 
