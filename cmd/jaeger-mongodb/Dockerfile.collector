@@ -1,11 +1,20 @@
 ARG base_image
+ARG go_base_image
 ARG jaeger_version
 
-FROM jaegertracing/jaeger-collector:$jaeger_version
+FROM jaegertracing/jaeger-collector:$jaeger_version as jaeger
 
-FROM $base_image
-COPY --from=0 /go/bin/collector-linux /go/bin/collector-linux
-COPY jaeger-mongodb /bin/jaeger-mongodb
+FROM $go_base_image as builder
+WORKDIR /app/
+COPY go.mod go.sum /app
+RUN go mod download
+COPY . /app
+RUN CGO_ENABLED=0 GOOS=linux go build  ./cmd/jaeger-mongodb
+
+FROM $base_image as runner
+
+COPY --from=jaeger /go/bin/collector-linux /go/bin/collector-linux
+COPY --from=builder /app/jaeger-mongodb /bin/jaeger-mongodb
 
 ENV SPAN_STORAGE_TYPE grpc-plugin
 ENV GRPC_STORAGE_PLUGIN_BINARY /bin/jaeger-mongodb
