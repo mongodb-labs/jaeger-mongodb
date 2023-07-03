@@ -288,6 +288,9 @@ func (s *SpanReader) fetchTracesById(ctx context.Context, ids []string) (map[str
 			return nil, err
 		}
 		logs, err := s.convertLogs(ms.Logs)
+		if err != nil {
+			return nil, err
+		}
 
 		s := model.Span{
 			TraceID:       tId,
@@ -516,7 +519,7 @@ func (s *SpanReader) convertLogs(logs []Log) ([]model.Log, error) {
 			return []model.Log{}, err
 		}
 		convertedLog := model.Log{
-			Timestamp: time.Unix(int64(log.Timestamp), 0),
+			Timestamp: time.UnixMilli(int64(log.Timestamp)),
 			Fields:    fields,
 		}
 		convertedLogs[i] = convertedLog

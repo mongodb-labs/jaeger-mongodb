@@ -21,7 +21,7 @@ build-linux: clean
 .PHONY: docker-build
 docker-build:
 	for component in collector query ; do \
-  		docker buildx build . -f ./cmd/jaeger-mongodb/Dockerfile.$$component --no-cache \
+  		docker buildx build . -f ./cmd/jaeger-mongodb/Dockerfile.$$component\
   			--build-arg base_image=$(BASE_IMAGE) \
   			--build-arg go_base_image=$(GO_BASE_IMAGE) \
   			--build-arg jaeger_version=$(JAEGER_VERSION) \

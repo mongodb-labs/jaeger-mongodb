@@ -93,7 +93,7 @@ func convertLogs(logs []model.Log) []Log {
 	convertedLogs := make([]Log, 0)
 	for _, log := range logs {
 		convertedLog := Log{
-			Timestamp: uint64(log.Timestamp.Unix()),
+			Timestamp: uint64(log.Timestamp.UnixMilli()),
 			Fields:    convertKeyValues(log.Fields),
 		}
 		convertedLogs = append(convertedLogs, convertedLog)
