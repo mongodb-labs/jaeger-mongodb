@@ -3,7 +3,7 @@ DOCKER_NAMESPACE?=quay.io/jaeger-mongodb
 
 GO_BASE_IMAGE?=golang:1.19
 BASE_IMAGE?=alpine:3.16.2
-JAEGER_VERSION?=1.44.0
+JAEGER_VERSION?=1.48.0
 
 .PHONY: test
 test:
