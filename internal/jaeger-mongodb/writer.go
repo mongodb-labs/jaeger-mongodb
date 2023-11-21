@@ -34,8 +34,8 @@ func (s *SpanWriter) WriteSpan(ctx context.Context, span *model.Span) error {
 		ProcessID:     span.ProcessID,
 		Process:       convertProcess(span.Process),
 		Tags:          convertKeyValues(span.Tags),
-		//Logs:          nil,
-		Warnings: span.Warnings,
+		Logs:          convertLogs(span.Logs),
+		Warnings:      span.Warnings,
 	}
 	b, err := bson.Marshal(mSpan)
 
@@ -88,4 +88,15 @@ func convertKeyValue(kv model.KeyValue) KeyValue {
 		Type:  ValueType(strings.ToLower(kv.VType.String())),
 		Value: kv.AsString(),
 	}
+}
+func convertLogs(logs []model.Log) []Log {
+	convertedLogs := make([]Log, 0)
+	for _, log := range logs {
+		convertedLog := Log{
+			Timestamp: uint64(log.Timestamp.UnixMilli()),
+			Fields:    convertKeyValues(log.Fields),
+		}
+		convertedLogs = append(convertedLogs, convertedLog)
+	}
+	return convertedLogs
 }

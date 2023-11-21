@@ -128,6 +128,16 @@ func createIndexes(ctx context.Context, logger hclog.Logger, collection *mongo.C
 			Name: String("ServiceNameAndOperationsIndex"),
 		},
 	}
+	serviceNameTraceIdIndex := mongo.IndexModel{
+		Keys: bson.D{
+			bson.E{Key: "process.serviceName", Value: 1},
+			bson.E{Key: "startTime", Value: -1},
+			bson.E{Key: "traceID", Value: 1},
+		},
+		Options: &options.IndexOptions{
+			Name: String("ServiceNameTraceIdIndex"),
+		},
+	}
 
 	traceIDIndex := mongo.IndexModel{
 		Keys: bson.M{"traceID": 1},
@@ -154,6 +164,7 @@ func createIndexes(ctx context.Context, logger hclog.Logger, collection *mongo.C
 		[]mongo.IndexModel{
 			ttlIndex,
 			serviceNameIndex,
+			serviceNameTraceIdIndex,
 			traceIDIndex,
 			tagsIndex,
 		},

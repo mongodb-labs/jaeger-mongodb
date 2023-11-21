@@ -287,6 +287,10 @@ func (s *SpanReader) fetchTracesById(ctx context.Context, ids []string) (map[str
 		if err != nil {
 			return nil, err
 		}
+		logs, err := s.convertLogs(ms.Logs)
+		if err != nil {
+			return nil, err
+		}
 
 		s := model.Span{
 			TraceID:       tId,
@@ -296,12 +300,12 @@ func (s *SpanReader) fetchTracesById(ctx context.Context, ids []string) (map[str
 			StartTime:     ms.StartTime,
 			Duration:      model.MicrosecondsAsDuration(uint64(ms.Duration)),
 			Tags:          tags,
-			Logs:          []model.Log{}, // TODO(dmichel): implement
+			Logs:          logs,
 			Process: &model.Process{
 				ServiceName: ms.Process.ServiceName,
 				Tags:        pTags,
 			},
-			Warnings: []string{}, // TODO(dmichel): implement
+			Warnings: ms.Warnings,
 		}
 
 		tracesMap[ms.TraceID].Spans = append(tracesMap[ms.TraceID].Spans, &s)
@@ -364,7 +368,7 @@ func (s *SpanReader) findTraceIDs(ctx context.Context, query *spanstore.TraceQue
 	}
 
 	opts := options.FindOptions{
-		Projection: bson.D{{"traceID", 1}},
+		Projection: bson.D{{"traceID", 1}, {"_id", 0}},
 		Sort:       bson.D{{"startTime", -1}},
 	}
 
@@ -505,4 +509,20 @@ func (s *SpanReader) convertKeyValue(tag *KeyValue) (model.KeyValue, error) {
 		return model.Float64(tag.Key, value), nil
 	}
 	return model.KeyValue{}, fmt.Errorf("not a valid ValueType string %s", string(tag.Type))
+}
+
+func (s *SpanReader) convertLogs(logs []Log) ([]model.Log, error) {
+	convertedLogs := make([]model.Log, len(logs))
+	for i, log := range logs {
+		fields, err := s.convertKeyValues(log.Fields)
+		if err != nil {
+			return []model.Log{}, err
+		}
+		convertedLog := model.Log{
+			Timestamp: time.UnixMilli(int64(log.Timestamp)),
+			Fields:    fields,
+		}
+		convertedLogs[i] = convertedLog
+	}
+	return convertedLogs, nil
 }
